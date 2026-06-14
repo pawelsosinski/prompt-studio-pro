@@ -252,7 +252,7 @@ with col_b:
 
 col_ex, col_cl, col_desc = st.columns([1.3, 1, 3])
 with col_ex:
-    if st.button("📚 Wczytaj przykłady z lekcji", key="btn_ex"):
+    if st.button("📚 Wczytaj przykład", key="btn_ex"):
         for i, ex in enumerate(EXAMPLES):
             st.session_state[f"task_name_{i}"] = ex["name"]
             for qi in range(1, 6):
