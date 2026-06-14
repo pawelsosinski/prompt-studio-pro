@@ -581,10 +581,12 @@ with fw_r:
                   placeholder="Np. Mój manager / klient / zespół marketingu", key="fw_who")
 
 # ROI
-st.markdown("")
+st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+st.markdown("""<div style='margin-bottom:8px'>
+  <div style='font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:4px'>Kalkulator ROI wdrożenia</div>
+  <div style='font-size:12px;color:#64748b'>Ile czasu odzyskasz tygodniowo po wdrożeniu AI dla wybranego zadania?</div>
+</div>""", unsafe_allow_html=True)
 st.markdown("<div style='background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px'>",
-            unsafe_allow_html=True)
-st.markdown("<div style='font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px'>Kalkulator ROI</div>",
             unsafe_allow_html=True)
 rc1, rc2, rc3, rc4 = st.columns([1.2, 1.2, 1.5, 2])
 with rc1: roi_h = st.number_input("Czas na 1 wykonanie (godz.)", min_value=0.1, max_value=40.0, value=1.0, step=0.5, key="roi_hours")
