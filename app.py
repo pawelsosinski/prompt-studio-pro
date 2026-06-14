@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(
-    page_title="AI LAB: Matryca Decyzyjna",
+    page_title="Matryca Decyzyjna",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -242,7 +242,7 @@ biggest = max(range(3), key=lambda i: td[i]["gap"]["magnitude"] if td[i]["gap"] 
 
 col_t, col_b = st.columns([4, 1])
 with col_t:
-    st.markdown("# 🧠 AI LAB: Matryca Decyzyjna")
+    st.markdown("# 🧠 Matryca Decyzyjna")
     st.caption("Umiejętności Jutra AI 3.0 · Znajdź właściwy poziom wdrożenia AI dla swoich zadań")
 with col_b:
     st.markdown("<div style='padding-top:22px'>", unsafe_allow_html=True)
@@ -434,4 +434,4 @@ if all_scored:
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 st.markdown("---")
-st.caption("AI LAB: Matryca Decyzyjna · Umiejętności Jutra AI 3.0 · Zapisz wyniki — kliknij 🖨️ Drukuj do PDF")
+st.caption("Matryca Decyzyjna · Umiejętności Jutra AI 3.0 · Zapisz wyniki — kliknij 🖨️ Drukuj do PDF")
