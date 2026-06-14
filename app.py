@@ -230,32 +230,61 @@ def generate_pdf(td, task_names):
     from fpdf import FPDF
     from datetime import datetime
 
-    # Download DejaVu fonts for Polish character support (cached in /tmp)
-    reg = "/tmp/_dvs.ttf"
-    bld = "/tmp/_dvsb.ttf"
-    _base = "https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/master/ttf/"
-    for _fn, _fp in [("DejaVuSans.ttf", reg), ("DejaVuSans-Bold.ttf", bld)]:
-        if not os.path.exists(_fp):
+    def _find_font(filename):
+        # Prefer system fonts (available on Ubuntu/Streamlit Cloud)
+        for d in ["/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/dejavu",
+                  "/usr/share/fonts/truetype", "/usr/local/share/fonts"]:
+            p = os.path.join(d, filename)
+            if os.path.exists(p):
+                return p
+        # Fallback: download once to /tmp
+        tmp = f"/tmp/_{filename.replace('-', '').lower()}"
+        if not os.path.exists(tmp):
             try:
-                urllib.request.urlretrieve(_base + _fn, _fp)
+                req = urllib.request.Request(
+                    f"https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/{filename}",
+                    headers={"User-Agent": "Mozilla/5.0"}
+                )
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    with open(tmp, "wb") as f:
+                        f.write(r.read())
             except Exception:
                 pass
+        return tmp if os.path.exists(tmp) else None
 
-    has_r = os.path.exists(reg)
-    has_b = os.path.exists(bld)
+    reg = _find_font("DejaVuSans.ttf")
+    bld = _find_font("DejaVuSans-Bold.ttf")
 
     pdf = FPDF()
     pdf.set_auto_page_break(True, 15)
     pdf.set_margins(20, 20, 20)
 
-    if has_r:
-        pdf.add_font("dv", fname=reg)
-        if has_b:
-            pdf.add_font("dv", style="B", fname=bld)
-        F = "dv"
+    if reg:
+        try:
+            pdf.add_font("dv", fname=reg)
+            if bld:
+                pdf.add_font("dv", style="B", fname=bld)
+            F = "dv"
+            has_b = bool(bld)
+        except Exception:
+            F = "Helvetica"
+            has_b = False
     else:
         F = "Helvetica"
         has_b = False
+
+    def _t(text):
+        s = str(text)
+        # Replace special chars that break Helvetica (Latin-1 only)
+        if F == "Helvetica":
+            replacements = {
+                "—": "-", "–": "-", "’": "'", "“": '"', "”": '"',
+                "↑": "^", "↓": "v", "✓": "ok", "→": "->",
+            }
+            for src, dst in replacements.items():
+                s = s.replace(src, dst)
+            s = s.encode("latin-1", "replace").decode("latin-1")
+        return s
 
     def sty(sz, b=False, clr=(226, 232, 240)):
         pdf.set_font(F, "B" if b and has_b else "", sz)
@@ -263,12 +292,12 @@ def generate_pdf(td, task_names):
 
     def lc(text, sz=10, b=False, clr=(226, 232, 240), a="L"):
         sty(sz, b, clr)
-        pdf.cell(w=0, h=max(5, int(sz * 0.65)), text=str(text),
+        pdf.cell(w=0, h=max(5, int(sz * 0.65)), text=_t(text),
                  align=a, new_x="LMARGIN", new_y="NEXT")
 
     def mc(text, sz=10, b=False, clr=(226, 232, 240)):
         sty(sz, b, clr)
-        pdf.multi_cell(w=0, h=max(4, int(sz * 0.55)), text=str(text))
+        pdf.multi_cell(w=0, h=max(4, int(sz * 0.55)), text=_t(text))
 
     pdf.add_page()
 
@@ -288,17 +317,17 @@ def generate_pdf(td, task_names):
 
         pdf.set_fill_color(30, 41, 59)
         sty(11, True, (226, 232, 240))
-        pdf.cell(w=0, h=8, text=f"  Zadanie {i+1}: {name}",
+        pdf.cell(w=0, h=8, text=_t(f"  Zadanie {i+1}: {name}"),
                  fill=True, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(2)
 
         for qi, ql in enumerate(q_lbl):
             val = d["vals"][qi]
-            ans = next((l for l, v in QUESTIONS[qi]["options"] if v == val), "—") if val > 0 else "—"
+            ans = next((l for l, v in QUESTIONS[qi]["options"] if v == val), "-") if val > 0 else "-"
             sty(9, False, (100, 116, 139))
-            pdf.cell(w=52, h=5, text=ql + ":", new_x="RIGHT", new_y="TOP")
+            pdf.cell(w=52, h=5, text=_t(ql + ":"), new_x="RIGHT", new_y="TOP")
             sty(9, False, (203, 213, 225))
-            pdf.cell(w=0, h=5, text=f"{ans}  [{val}/4]", new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(w=0, h=5, text=_t(f"{ans}  [{val}/4]"), new_x="LMARGIN", new_y="NEXT")
 
         pdf.ln(2)
 
@@ -346,11 +375,11 @@ def generate_pdf(td, task_names):
     wh = roi_h * roi_t * (roi_p / 100)
     mc(f"Parametry: {roi_h}h × {roi_t}×/tydz. × {roi_p}% automatyzacji", 9, False, (100, 116, 139))
     pdf.ln(2)
-    for rv, rl in [(f"{wh:.1f}h", "/ tydzień"), (f"{wh*4.3:.0f}h", "/ miesiąc"), (f"{wh*52:.0f}h", "/ rok")]:
+    for rv, rl in [(f"{wh:.1f}h", "/ tydz."), (f"{wh*4.3:.0f}h", "/ mies."), (f"{wh*52:.0f}h", "/ rok")]:
         sty(16, True, (34, 197, 94))
-        pdf.cell(w=38, h=9, text=rv, new_x="RIGHT", new_y="TOP")
+        pdf.cell(w=38, h=9, text=_t(rv), new_x="RIGHT", new_y="TOP")
         sty(9, False, (100, 116, 139))
-        pdf.cell(w=0, h=9, text="  " + rl, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(w=0, h=9, text=_t("  " + rl), new_x="LMARGIN", new_y="NEXT")
 
     pdf.set_y(-20)
     lc("Matryca Decyzyjna AI", 8, False, (100, 116, 139), "C")
