@@ -225,84 +225,137 @@ def decode_state(encoded):
     except Exception:
         pass
 
-def generate_html(td, task_names):
+def generate_pdf(td, task_names):
+    import os, urllib.request
+    from fpdf import FPDF
+    from datetime import datetime
+
+    # Download DejaVu fonts for Polish character support (cached in /tmp)
+    reg = "/tmp/_dvs.ttf"
+    bld = "/tmp/_dvsb.ttf"
+    _base = "https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/master/ttf/"
+    for _fn, _fp in [("DejaVuSans.ttf", reg), ("DejaVuSans-Bold.ttf", bld)]:
+        if not os.path.exists(_fp):
+            try:
+                urllib.request.urlretrieve(_base + _fn, _fp)
+            except Exception:
+                pass
+
+    has_r = os.path.exists(reg)
+    has_b = os.path.exists(bld)
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(True, 15)
+    pdf.set_margins(20, 20, 20)
+
+    if has_r:
+        pdf.add_font("dv", fname=reg)
+        if has_b:
+            pdf.add_font("dv", style="B", fname=bld)
+        F = "dv"
+    else:
+        F = "Helvetica"
+        has_b = False
+
+    def sty(sz, b=False, clr=(226, 232, 240)):
+        pdf.set_font(F, "B" if b and has_b else "", sz)
+        pdf.set_text_color(*clr)
+
+    def lc(text, sz=10, b=False, clr=(226, 232, 240), a="L"):
+        sty(sz, b, clr)
+        pdf.cell(w=0, h=max(5, int(sz * 0.65)), text=str(text),
+                 align=a, new_x="LMARGIN", new_y="NEXT")
+
+    def mc(text, sz=10, b=False, clr=(226, 232, 240)):
+        sty(sz, b, clr)
+        pdf.multi_cell(w=0, h=max(4, int(sz * 0.55)), text=str(text))
+
+    pdf.add_page()
+
+    # Title
+    lc("Matryca Decyzyjna AI", 20, True, (59, 130, 246), "C")
+    lc(datetime.now().strftime("Raport z dnia %d.%m.%Y"), 9, False, (100, 116, 139), "C")
+    pdf.ln(6)
+
+    # ── Sekcja 1 + 2 ──────────────────────────────────────────────────────────
+    lc("SEKCJA 1 + 2 — AUDYT I ANALIZA LUKI", 13, True, (59, 130, 246))
+    pdf.ln(3)
+
+    q_lbl = ["Częstotliwość", "Powtarzalność", "Czas trwania", "Osąd w trakcie", "Liczba narzędzi"]
+
+    for i, (d, name) in enumerate(zip(td, task_names)):
+        lv, gp = d["level"], d["gap"]
+
+        pdf.set_fill_color(30, 41, 59)
+        sty(11, True, (226, 232, 240))
+        pdf.cell(w=0, h=8, text=f"  Zadanie {i+1}: {name}",
+                 fill=True, new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+
+        for qi, ql in enumerate(q_lbl):
+            val = d["vals"][qi]
+            ans = next((l for l, v in QUESTIONS[qi]["options"] if v == val), "—") if val > 0 else "—"
+            sty(9, False, (100, 116, 139))
+            pdf.cell(w=52, h=5, text=ql + ":", new_x="RIGHT", new_y="TOP")
+            sty(9, False, (203, 213, 225))
+            pdf.cell(w=0, h=5, text=f"{ans}  [{val}/4]", new_x="LMARGIN", new_y="NEXT")
+
+        pdf.ln(2)
+
+        if lv:
+            lc(f"Wynik: {d['score']}/20  →  {lv['name']}", 11, True, (59, 130, 246))
+            mc(lv["recommendation"], 9, False, (203, 213, 225))
+            mc(f"Narzędzia: {lv['tools']}", 8, False, (100, 116, 139))
+
+        if gp:
+            pdf.ln(1)
+            gc = (239, 68, 68) if gp["type"] == "under" else (245, 158, 11) if gp["type"] == "over" else (34, 197, 94)
+            lbl_c = gp["label"].replace("⬆️ ", "↑ ").replace("⬇️ ", "↓ ").replace("✅ ", "✓ ")
+            lc(f"Luka: {lbl_c}", 10, True, gc)
+            mc(gp["message"], 9, False, (203, 213, 225))
+
+        pdf.ln(7)
+
+    # ── Sekcja 3 ──────────────────────────────────────────────────────────────
+    pdf.add_page()
+    lc("SEKCJA 3 — FIRST WIN CARD", 13, True, (245, 158, 11))
+    pdf.ln(4)
+
+    fw_idx = st.session_state.get("fw_task_select", 0)
+    fw_name = task_names[fw_idx] if isinstance(fw_idx, int) and fw_idx < 3 else "—"
+
+    for label, key in [
+        ("Zadanie do wdrożenia", None),
+        ("Opis luki — jak wykonujesz to zadanie dziś?", "fw_gap"),
+        ("Co zbuduję — minimalna działająca wersja (MVP)", "fw_build"),
+        ("Szacowana oszczędność / tydzień", "fw_savings"),
+        ("Kiedy zacznę", "fw_start"),
+        ("Kto to zauważy jako pierwszy?", "fw_who"),
+    ]:
+        val = fw_name if key is None else (st.session_state.get(key) or "—")
+        lc(label.upper(), 8, True, (100, 116, 139))
+        mc(str(val), 10, False, (226, 232, 240))
+        pdf.ln(3)
+
+    # ROI
+    pdf.ln(2)
+    lc("KALKULATOR ROI", 10, True, (34, 197, 94))
     roi_h = st.session_state.get("roi_hours", 1.0)
     roi_t = st.session_state.get("roi_times", 2)
     roi_p = st.session_state.get("roi_pct", 60)
     wh = roi_h * roi_t * (roi_p / 100)
-    fw_idx = st.session_state.get("fw_task_select", 0)
-    fw_name = task_names[fw_idx] if fw_idx < len(task_names) else "—"
+    mc(f"Parametry: {roi_h}h × {roi_t}×/tydz. × {roi_p}% automatyzacji", 9, False, (100, 116, 139))
+    pdf.ln(2)
+    for rv, rl in [(f"{wh:.1f}h", "/ tydzień"), (f"{wh*4.3:.0f}h", "/ miesiąc"), (f"{wh*52:.0f}h", "/ rok")]:
+        sty(16, True, (34, 197, 94))
+        pdf.cell(w=38, h=9, text=rv, new_x="RIGHT", new_y="TOP")
+        sty(9, False, (100, 116, 139))
+        pdf.cell(w=0, h=9, text="  " + rl, new_x="LMARGIN", new_y="NEXT")
 
-    tasks_html = ""
-    q_full = ["Częstotliwość", "Powtarzalność", "Czas trwania", "Osąd w trakcie", "Liczba narzędzi"]
-    for i, (d, name) in enumerate(zip(td, task_names)):
-        lv = d["level"]
-        gp = d["gap"]
-        lv_c = lv["color"] if lv else "#64748b"
-        lv_n = lv["name"] if lv else "—"
-        gp_c = gp["color"] if gp else "#64748b"
-        gp_l = gp["label"] if gp else "—"
-        cl_l = next((l for l, v in CURRENT_LEVELS if v == d["cl"]), "—") if d["cl"] >= 0 else "—"
-        rows = "".join(
-            f"<tr><td style='color:#666;padding:3px 8px'>{ql}</td>"
-            f"<td style='padding:3px 8px'>{next((l for l, v in QUESTIONS[qi-1]['options'] if v == d['vals'][qi-1]), '—') if d['vals'][qi-1] > 0 else '—'}</td>"
-            f"<td style='text-align:center;font-weight:bold;padding:3px 8px'>{d['vals'][qi-1]}/4</td></tr>"
-            for qi, ql in enumerate(q_full, 1)
-        )
-        tasks_html += (f"<div style='border:2px solid {lv_c};border-radius:8px;padding:16px;margin:12px 0;page-break-inside:avoid'>"
-                       f"<h3 style='margin:0 0 10px'>Zadanie {i+1}: {name}</h3>"
-                       f"<table style='width:100%;border-collapse:collapse;font-size:13px'>{rows}</table>"
-                       f"<div style='display:flex;gap:12px;margin-top:12px;flex-wrap:wrap'>"
-                       f"<div style='background:{lv_c}22;border:1px solid {lv_c};border-radius:6px;padding:8px 12px;flex:1;min-width:120px'>"
-                       f"<div style='font-size:10px;color:#666;text-transform:uppercase'>Wynik</div>"
-                       f"<div style='font-size:20px;font-weight:800;color:{lv_c}'>{d['score']}/20</div>"
-                       f"<div style='font-size:12px;font-weight:600;color:{lv_c}'>{lv_n}</div></div>"
-                       f"<div style='background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:8px 12px;flex:1;min-width:120px'>"
-                       f"<div style='font-size:10px;color:#666;text-transform:uppercase'>Obecny poziom</div>"
-                       f"<div style='font-size:12px;font-weight:600;margin-top:4px'>{cl_l}</div></div>"
-                       f"<div style='background:{gp_c}22;border:1px solid {gp_c};border-radius:6px;padding:8px 12px;flex:2;min-width:160px'>"
-                       f"<div style='font-size:10px;color:#666;text-transform:uppercase'>Luka</div>"
-                       f"<div style='font-size:12px;font-weight:600;color:{gp_c};margin-top:4px'>{gp_l}</div></div>"
-                       f"</div></div>")
+    pdf.set_y(-20)
+    lc("Matryca Decyzyjna AI", 8, False, (100, 116, 139), "C")
 
-    return f"""<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">
-<title>Matryca Decyzyjna AI</title>
-<style>
-* {{ box-sizing:border-box; margin:0; padding:0; }}
-body {{ font-family:Arial,sans-serif; color:#1a1a1a; padding:30px; max-width:900px; margin:0 auto; }}
-h1 {{ font-size:26px; border-bottom:4px solid #3b82f6; padding-bottom:10px; margin-bottom:18px; }}
-h2 {{ font-size:15px; color:#3b82f6; text-transform:uppercase; letter-spacing:.1em; margin:24px 0 10px; border-left:4px solid #3b82f6; padding-left:10px; }}
-.fw {{ border:1px solid #e2e8f0; border-radius:8px; padding:18px; }}
-.fl {{ margin:10px 0; }}
-.fll {{ font-size:10px; color:#666; text-transform:uppercase; letter-spacing:.08em; }}
-.flv {{ font-size:13px; margin-top:3px; padding:6px 8px; background:#f8f9fa; border-radius:4px; min-height:26px; }}
-.roi {{ background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:14px; margin-top:12px; display:flex; gap:20px; align-items:center; }}
-.rn {{ font-size:22px; font-weight:800; color:#16a34a; }}
-.rl {{ font-size:11px; color:#666; }}
-@media print {{ h2 {{ page-break-before:always; }} h2:first-of-type {{ page-break-before:avoid; }} }}
-</style></head><body>
-<h1>Matryca Decyzyjna AI</h1>
-<h2>Sekcja 1 + 2 — Audyt i analiza luki</h2>
-{tasks_html}
-<h2>Sekcja 3 — First Win Card</h2>
-<div class="fw">
-  <div style="font-size:14px;font-weight:700;margin-bottom:14px">Zadanie: {fw_name}</div>
-  <div class="fl"><div class="fll">Opis luki — jak wykonujesz to zadanie dziś</div><div class="flv">{st.session_state.get('fw_gap','') or '—'}</div></div>
-  <div class="fl"><div class="fll">Co zbuduję — minimalna działająca wersja</div><div class="flv">{st.session_state.get('fw_build','') or '—'}</div></div>
-  <div style="display:flex;gap:14px;margin-top:8px">
-    <div class="fl" style="flex:1"><div class="fll">Kiedy zacznę</div><div class="flv">{st.session_state.get('fw_start','') or '—'}</div></div>
-    <div class="fl" style="flex:1"><div class="fll">Kto to zauważy</div><div class="flv">{st.session_state.get('fw_who','') or '—'}</div></div>
-  </div>
-  <div class="roi">
-    <div style="text-align:center"><div class="rn">{wh:.1f}h</div><div class="rl">/ tydzień</div></div>
-    <div style="text-align:center"><div class="rn">{wh*4.3:.0f}h</div><div class="rl">/ miesiąc</div></div>
-    <div style="text-align:center"><div class="rn">{wh*52:.0f}h</div><div class="rl">/ rok</div></div>
-    <div style="flex:1;font-size:12px;color:#666;padding-left:8px">
-      Szacowana oszczędność przy {roi_h}h × {roi_t}×/tydz. × {roi_p}% automatyzacji
-    </div>
-  </div>
-</div>
-</body></html>"""
+    return bytes(pdf.output())
 
 # ── URL state loading ─────────────────────────────────────────────────────────
 
@@ -325,6 +378,17 @@ for i in range(3):
 task_names = [st.session_state.get(f"task_name_{i}", "") or f"Zadanie {i+1}" for i in range(3)]
 biggest = max(range(3), key=lambda i: td[i]["gap"]["magnitude"] if td[i]["gap"] else 0)
 
+# Cache PDF per state hash to avoid regenerating on every rerender
+_pdf_key = "|".join([encode_state()] + [
+    str(st.session_state.get(k, "")) for k in
+    ["fw_gap", "fw_build", "fw_savings", "fw_start", "fw_who", "fw_task_select",
+     "roi_hours", "roi_times", "roi_pct"]
+])
+if st.session_state.get("_pdf_key") != _pdf_key:
+    st.session_state["_pdf_key"] = _pdf_key
+    st.session_state["_pdf_bytes"] = generate_pdf(td, task_names)
+pdf_bytes = st.session_state.get("_pdf_bytes", b"")
+
 # ── HEADER ────────────────────────────────────────────────────────────────────
 
 col_t, col_b = st.columns([4, 1])
@@ -335,8 +399,8 @@ with col_b:
     st.markdown("<div style='padding-top:22px'>", unsafe_allow_html=True)
     if st.button("🖨️ Drukuj", key="btn_print", help="Otwiera okno drukowania"):
         st.markdown("<script>window.print();</script>", unsafe_allow_html=True)
-    st.download_button("⬇️ Pobierz raport", data=generate_html(td, task_names).encode("utf-8"),
-                       file_name="matryca_decyzyjna.html", mime="text/html", key="btn_dl")
+    st.download_button("⬇️ Pobierz PDF", data=pdf_bytes,
+                       file_name="matryca_decyzyjna.pdf", mime="application/pdf", key="btn_dl")
     st.markdown("</div>", unsafe_allow_html=True)
 
 col_role, col_load, col_clear, col_share = st.columns([2, 1.1, 0.9, 1.3])
@@ -539,4 +603,11 @@ if all(d["level"] is not None for d in td):
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 st.markdown("---")
-st.caption("Matryca Decyzyjna · Zapisz wyniki — kliknij ⬇️ Pobierz raport lub 🖨️ Drukuj")
+_fc1, _fc2, _fc3 = st.columns([2, 1, 1])
+with _fc2:
+    st.download_button("⬇️ Pobierz PDF", data=pdf_bytes, file_name="matryca_decyzyjna.pdf",
+                       mime="application/pdf", key="btn_dl_footer", use_container_width=True)
+with _fc3:
+    if st.button("🖨️ Drukuj", key="btn_print_footer", use_container_width=True):
+        st.markdown("<script>window.print();</script>", unsafe_allow_html=True)
+st.caption("Matryca Decyzyjna AI")
