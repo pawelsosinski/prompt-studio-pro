@@ -434,4 +434,4 @@ if all_scored:
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 st.markdown("---")
-st.caption("Matryca Decyzyjna · Umiejętności Jutra AI 3.0 · Zapisz wyniki — kliknij 🖨️ Drukuj do PDF")
+st.caption("Matryca Decyzyjna · Zapisz wyniki — kliknij 🖨️ Drukuj do PDF")
