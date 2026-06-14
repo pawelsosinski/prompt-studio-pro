@@ -586,8 +586,6 @@ st.markdown("""<div style='margin-bottom:8px'>
   <div style='font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:4px'>Kalkulator ROI wdrożenia</div>
   <div style='font-size:12px;color:#64748b'>Ile czasu odzyskasz tygodniowo po wdrożeniu AI dla wybranego zadania?</div>
 </div>""", unsafe_allow_html=True)
-st.markdown("<div style='background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px'>",
-            unsafe_allow_html=True)
 rc1, rc2, rc3, rc4 = st.columns([1.2, 1.2, 1.5, 2])
 with rc1: roi_h = st.number_input("Czas na 1 wykonanie (godz.)", min_value=0.1, max_value=40.0, value=1.0, step=0.5, key="roi_hours")
 with rc2: roi_t = st.number_input("Wykonań / tydzień", min_value=1, max_value=50, value=2, step=1, key="roi_times")
@@ -599,7 +597,6 @@ with rc4:
         <div style='text-align:center'><div style='font-size:22px;font-weight:800;color:#3b82f6'>{wh*4.3:.0f}h</div><div style='font-size:11px;color:#94a3b8'>/ miesiąc</div></div>
         <div style='text-align:center'><div style='font-size:22px;font-weight:800;color:#8b5cf6'>{wh*52:.0f}h</div><div style='font-size:11px;color:#94a3b8'>/ rok</div></div>
     </div>""", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
 
 # ── WALIDACJA ─────────────────────────────────────────────────────────────────
 
