@@ -501,6 +501,7 @@ for i, col in enumerate(st.columns(3)):
 if any(td[i]["score"] > 0 for i in range(3)):
     q_labels = ["Częstotliwość", "Powtarzalność", "Czas trwania", "Osąd w trakcie", "Liczba narzędzi"]
     clrs = ["#3b82f6", "#8b5cf6", "#f59e0b"]
+    fill_clrs = ["rgba(59,130,246,0.2)", "rgba(139,92,246,0.2)", "rgba(245,158,11,0.2)"]
     fig = go.Figure()
     for i in range(3):
         if td[i]["score"] > 0:
@@ -508,7 +509,7 @@ if any(td[i]["score"] > 0 for i in range(3)):
             fig.add_trace(go.Scatterpolar(
                 r=v + [v[0]], theta=q_labels + [q_labels[0]],
                 fill="toself", name=task_names[i],
-                line=dict(color=clrs[i], width=2), fillcolor=clrs[i] + "33"))
+                line=dict(color=clrs[i], width=2), fillcolor=fill_clrs[i]))
     fig.update_layout(
         polar=dict(bgcolor="#1e293b",
                    radialaxis=dict(visible=True, range=[0, 4], tickvals=[1, 2, 3, 4],
