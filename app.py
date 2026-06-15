@@ -292,12 +292,14 @@ def generate_pdf(td, task_names):
 
     def lc(text, sz=10, b=False, clr=(226, 232, 240), a="L"):
         sty(sz, b, clr)
-        pdf.cell(w=0, h=max(5, int(sz * 0.65)), text=_t(text),
+        pdf.set_x(pdf.l_margin)
+        pdf.cell(w=pdf.epw, h=max(5, int(sz * 0.65)), text=_t(text),
                  align=a, new_x="LMARGIN", new_y="NEXT")
 
     def mc(text, sz=10, b=False, clr=(226, 232, 240)):
         sty(sz, b, clr)
-        pdf.multi_cell(w=0, h=max(4, int(sz * 0.55)), text=_t(text))
+        pdf.set_x(pdf.l_margin)
+        pdf.multi_cell(w=pdf.epw, h=max(5, int(sz * 0.55)), text=_t(text))
 
     pdf.add_page()
 
@@ -317,17 +319,19 @@ def generate_pdf(td, task_names):
 
         pdf.set_fill_color(30, 41, 59)
         sty(11, True, (226, 232, 240))
-        pdf.cell(w=0, h=8, text=_t(f"  Zadanie {i+1}: {name}"),
+        pdf.set_x(pdf.l_margin)
+        pdf.cell(w=pdf.epw, h=8, text=_t(f"  Zadanie {i+1}: {name}"),
                  fill=True, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(2)
 
         for qi, ql in enumerate(q_lbl):
             val = d["vals"][qi]
             ans = next((l for l, v in QUESTIONS[qi]["options"] if v == val), "-") if val > 0 else "-"
+            pdf.set_x(pdf.l_margin)
             sty(9, False, (100, 116, 139))
             pdf.cell(w=52, h=5, text=_t(ql + ":"), new_x="RIGHT", new_y="TOP")
             sty(9, False, (203, 213, 225))
-            pdf.cell(w=0, h=5, text=_t(f"{ans}  [{val}/4]"), new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(w=pdf.epw - 52, h=5, text=_t(f"{ans}  [{val}/4]"), new_x="LMARGIN", new_y="NEXT")
 
         pdf.ln(2)
 
